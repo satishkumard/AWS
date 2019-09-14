@@ -1,0 +1,232 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "classVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "CidrBlock": "10.0.0.0/16",
+        "Tags": [
+          {
+            "Key": "Environment",
+            "Value": "Test"
+          }
+        ]
+      }
+    },
+    "publicSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "classVpc"
+        },
+        "CidrBlock": "10.0.0.0/24",
+        "AvailabilityZone" : "us-east-1a"
+      }
+    },
+    "publicSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "classVpc"
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "AvailabilityZone" : "us-east-1b"
+      }
+    },
+
+    "webserverSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "classVpc"
+        },
+        "GroupDescription": "Allow access from HTTP and SSH traffic",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {"Ref": "YourIp"}
+          }
+        ]
+      }
+    },
+    "internetGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {}
+    },
+    "vpcGwAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "internetGW"
+        },
+        "VpcId": {
+          "Ref": "classVpc"
+        }
+      }
+    },
+    "publicRT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "classVpc"
+        }
+      }
+    },
+    "publicRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "publicRT"
+        },
+        "GatewayId": {
+          "Ref": "internetGW"
+        }
+      },
+      "DependsOn": [
+        "internetGW"
+      ]
+    },
+    "publicSubnet1RTassoc": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "publicRT"
+        },
+        "SubnetId": {
+          "Ref": "publicSubnet1"
+        }
+      }
+    },
+    "publicSubnet2RTassoc": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "publicRT"
+        },
+        "SubnetId": {
+          "Ref": "publicSubnet2"
+        }
+      }
+    },
+    "websiteLB" : {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Scheme" : "internal",
+        "Subnets" : [ {"Ref": "publicSubnet1"}, {"Ref" : "publicSubnet2"}],
+        "LoadBalancerAttributes" : [
+          { "Key" : "idle_timeout.timeout_seconds", "Value" : "50" }
+        ],
+        "SecurityGroups": [{"Ref": "webserverSG"}],
+      }
+    },
+    "web1": {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "AvailabilityZone" : "us-east-1a",
+        "ImageId" : "ami-3ea13f29",
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType" : { "Ref" : "InstanceTypeChoice" } ,
+        "SecurityGroupIds" : [{ "Ref" : "webserverSG" }] ,
+        "SubnetId" : { "Ref" : "publicSubnet1" }
+      }
+    },
+    "web2": {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "AvailabilityZone" : "us-east-1b",
+        "ImageId" : "ami-3ea13f29",
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType" : { "Ref" : "InstanceTypeChoice" },
+        "SecurityGroupIds" : [{ "Ref" : "webserverSG" }],
+        "SubnetId" : { "Ref" : "publicSubnet2" }
+      }
+    },
+    "web3": {
+      "Type" : "AWS::EC2::Instance",
+      "Condition" : "Create3rdserver",
+      "Properties" : {
+        "AvailabilityZone" : "us-east-1b",
+        "ImageId" : "ami-3ea13f29",
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType" : { "Ref" : "InstanceTypeChoice" },
+        "SecurityGroupIds" : [{ "Ref" : "webserverSG" }],
+        "SubnetId" : { "Ref" : "publicSubnet2" }
+      }
+
+  },
+    "TargetGroup" : {
+      "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties" : {
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckProtocol": "HTTPS",
+        "HealthCheckTimeoutSeconds": 10,
+        "HealthyThresholdCount": 4,
+        "Matcher" : {
+          "HttpCode" : "200"
+        },
+        "Name": "MyTargets",
+        "Port": 10,
+        "Protocol": "HTTPS",
+        "TargetGroupAttributes": [{
+          "Key": "deregistration_delay.timeout_seconds",
+          "Value": "20"
+          }],
+          "Targets": [
+            { "Id": {"Ref" : "web1"}, "Port": 80 },
+            { "Id": {"Ref" : "web2"}, "Port": 80 },
+            {"Fn::If" : [ "Create3rdserver", { "Id": {"Ref" : "web3"}, "Port": 80 }, {"Ref" : "AWS::NoValue"}]}
+          ],
+          "UnhealthyThresholdCount": 3,
+          "VpcId": {"Ref" : "classVpc"},
+        }
+      },
+      "Listener": {
+        "Type": "AWS::ElasticLoadBalancingV2::Listener",
+        "Properties": {
+          "DefaultActions": [{
+            "Type": "forward",
+            "TargetGroupArn": { "Ref": "TargetGroup" }
+            }],
+            "LoadBalancerArn": { "Ref": "websiteLB" },
+            "Port": "8000",
+            "Protocol": "HTTP"
+          }
+        }
+  },
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of your EC2 KeyPair to enable SSH access to the instances.",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "YourIp": {
+      "Description": "The current CIDR IP address of your workstation (x.x.x.x/32).",
+      "Type": "String"
+    },
+    "InstanceTypeChoice": {
+      "Description": "Instance Type",
+      "Type": "String",
+      "AllowedValues": ["t2.micro", "t2.small"]
+
+    },
+    "ExpandServers": {
+      "Description": "Do you want to expand servers? Yes/No",
+      "Type": "String",
+      "AllowedValues": ["Yes", "No"]
+    }
+  },
+  "Conditions" : {
+  "Create3rdserver" : {"Fn::Equals" : [{"Ref" : "ExpandServers"}, "Yes"]}
+  }
+}

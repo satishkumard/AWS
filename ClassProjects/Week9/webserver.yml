@@ -1,0 +1,16 @@
+---
+- name: install and start nginx
+  hosts: 127.0.0.1
+  remote_user: ec2-user
+  become: yes
+  become_method: sudo
+  vars:
+   http_port: 80
+   max_clients: 100
+
+
+  tasks:
+  - name: install nginx
+    yum: name=nginx state=present
+  - name: start nginx
+    service: name=nginx enabled=yes state=started
