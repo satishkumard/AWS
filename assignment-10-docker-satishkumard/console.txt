@@ -1,0 +1,126 @@
+Started by GitHub push by satishkumard
+Obtained Jenkinsfile from git https://github.com/seis665/assignment-10-docker-satishkumard.git
+Running in Durability level: MAX_SURVIVABILITY
+[Pipeline] node
+Running on 5e3e704edffa in /workspace/docker-pipeline
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Declarative: Checkout SCM)
+[Pipeline] checkout
+Fetching changes from the remote Git repository
+Checking out Revision 259a370e4f8c588f8aaabbcc8969d9c3ce5b20df (refs/remotes/origin/master)
+Commit message: "Update site.py"
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Linting)
+[Pipeline] sh
++ python -m pip install flake8
+Requirement already satisfied: flake8 in /usr/lib/python2.7/site-packages
+Requirement already satisfied: configparser; python_version < "3.2" in /usr/lib/python2.7/site-packages (from flake8)
+Requirement already satisfied: enum34; python_version < "3.4" in /usr/lib/python2.7/site-packages (from flake8)
+Requirement already satisfied: pyflakes<2.1.0,>=2.0.0 in /usr/lib/python2.7/site-packages (from flake8)
+Requirement already satisfied: mccabe<0.7.0,>=0.6.0 in /usr/lib/python2.7/site-packages (from flake8)
+Requirement already satisfied: setuptools>=30 in /usr/lib/python2.7/site-packages (from flake8)
+Requirement already satisfied: pycodestyle<2.5.0,>=2.4.0 in /usr/lib/python2.7/site-packages (from flake8)
+You are using pip version 9.0.1, however version 18.1 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+[Pipeline] sh
+ > git rev-parse --is-inside-work-tree # timeout=10
+ > git config remote.origin.url https://github.com/seis665/assignment-10-docker-satishkumard.git # timeout=10
+Fetching upstream changes from https://github.com/seis665/assignment-10-docker-satishkumard.git
+ > git --version # timeout=10
+using GIT_ASKPASS to set credentials 
+ > git fetch --tags --progress https://github.com/seis665/assignment-10-docker-satishkumard.git +refs/heads/*:refs/remotes/origin/*
+ > git rev-parse refs/remotes/origin/master^{commit} # timeout=10
+ > git rev-parse refs/remotes/origin/origin/master^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 259a370e4f8c588f8aaabbcc8969d9c3ce5b20df
+ > git rev-list --no-walk 7517b311ee877e1d54dfed7dfc1b77ea77bb7a0e # timeout=10
++ flake8 app/
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build)
+[Pipeline] sh
++ docker build -t classweb:34 .
+Sending build context to Docker daemon  230.9kB
+
+Step 1/11 : FROM ubuntu:xenial
+ ---> a51debf7e1eb
+Step 2/11 : MAINTAINER Satish "satishkumard@gmail.com"
+ ---> Using cache
+ ---> ba29b48e49f0
+Step 3/11 : EXPOSE 8080/tcp
+ ---> Using cache
+ ---> ca843bf029f9
+Step 4/11 : RUN apt-get update
+ ---> Using cache
+ ---> b5f35dea84aa
+Step 5/11 : RUN apt-get install -y python-pip python-dev
+ ---> Using cache
+ ---> cf0569a28c91
+Step 6/11 : RUN mkdir /app
+ ---> Using cache
+ ---> db9891916d25
+Step 7/11 : ADD app/site.py /app/site.py
+ ---> Using cache
+ ---> 9a4a13131dc1
+Step 8/11 : ADD app/requirements.txt /app/requirements.txt
+ ---> Using cache
+ ---> 4f7179d2da57
+Step 9/11 : WORKDIR /app
+ ---> Using cache
+ ---> 45ceace0f2fe
+Step 10/11 : RUN pip install -r requirements.txt
+ ---> Using cache
+ ---> 33ef79c2da12
+Step 11/11 : CMD ["python", "site.py"]
+ ---> Using cache
+ ---> e2be38afe420
+Successfully built e2be38afe420
+Successfully tagged classweb:34
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Test)
+[Pipeline] sh
++ docker run --name classweb1 -d -p 80:8080 classweb:34
+a25c920bfcc22813678ca8ef3e5319c4c4c066b447529ba30369af39b53eff27
+[Pipeline] sh
++ grep super
++ curl 169.254.169.254/latest/meta-data/local-ipv4
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    11  100    11    0     0  11000      0 --:--:-- --:--:-- --:--:-- 11000
++ curl 10.120.1.17
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    70  100    70    0     0   4375      0 --:--:-- --:--:-- --:--:--  4666
+<html><body><b>Working with containers is super fun!</b></body></html>
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] sh
++ docker ps -f name=classweb1 -q
++ xargs --no-run-if-empty docker container stop
+a25c920bfcc2
+[Pipeline] sh
++ docker container ls -a -fname=classweb1 -q
++ xargs -r docker container rm
+a25c920bfcc2
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS

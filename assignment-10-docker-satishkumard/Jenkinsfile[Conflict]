@@ -1,0 +1,28 @@
+pipeline {
+    agent { label 'linux' }
+    stages {
+		stage('Linting') {
+			steps {
+				sh "flake8 app/"
+				}
+			}
+		stage('Build') {
+			steps {
+				sh "docker build -t classweb:${BUILD_NUMBER} ."
+				
+				}
+		    }
+		stage('Test') {
+			steps {
+				sh "docker run --name classweb1 -d -p 80:8080 classweb:${BUILD_NUMBER}" 		
+				sh 'curl \$(curl 169.254.169.254/latest/meta-data/local-ipv4) | grep "super" '	
+				}
+			}
+		}
+	post {
+		always {
+			sh 'docker ps -f name=classweb1 -q | xargs --no-run-if-empty docker container stop'
+			sh 'docker container ls -a -fname=classweb1 -q | xargs -r docker container rm'
+			}
+		}
+	}

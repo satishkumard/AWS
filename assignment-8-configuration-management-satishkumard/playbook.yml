@@ -1,0 +1,52 @@
+---
+- name: install apache
+  hosts: web1
+  remote_user: ec2-user
+  become: yes
+  become_method: sudo
+
+
+  tasks:
+  - name: Update all the current software packages on the system
+    yum:
+      name: "*"
+      state: latest
+  - name: Install the httpd, php, and php-mysqlnd software packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+    - httpd
+    - php
+    - php-mysqlnd
+  - name: Start the Apache web service and configure it to automatically start on system boot
+    service: name=httpd enabled=yes state=started
+
+
+- name: install wordpress
+  hosts: all
+  remote_user: ec2-user
+  become: yes
+  become_method: sudo
+  vars:
+   database_name: '{{ lookup("env", "DATABASE_NAME") }}'
+   database_username: '{{ lookup("env", "DATABASE_USERNAME") }}'
+   database_password: '{{ lookup("env", "DATABASE_PASSWORD") }}'
+   database_endpoint: '{{ lookup("env", "DATABASE_ENDPOINT") }}'
+
+
+  tasks:
+  - name: Download the wordpress software from the URL
+    get_url:
+      url: https://wordpress.org/latest.tar.gz
+      dest: /var/www/wp.tar.gz
+  - name: Unarchive the Wordpress software package to the directory
+    unarchive:
+      src: /var/www/wp.tar.gz
+      dest: /var/www/html
+      remote_src: yes
+  - name: Create the Wordpress configuration file
+    template:
+      src: /home/ec2-user/ansible_templates/wp-config.j2
+      dest: /var/www/html/wordpress/wp-config.php
+

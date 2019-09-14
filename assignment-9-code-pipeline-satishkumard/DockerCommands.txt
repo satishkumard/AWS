@@ -1,0 +1,15 @@
+
+--for building docker image:
+
+docker build -t dynacorpweb:1.0 . 
+
+--run the docker container using the image with env variables
+
+docker run -d -p 80:80 -e DYNAWEB_DB=dynadb --name dynacorpweb1 dynacorpweb:1.0
+
+-- using compose file
+docker-compose up -d
+
+
+--copy to s3 bucket
+aws s3 cp docker-single-server.json s3://jenkins-dand9090/
